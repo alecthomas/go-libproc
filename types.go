@@ -120,5 +120,54 @@ const (
 )
 
 // RUsageFlavor determines the return type of proc_pid_rusage.
-// TODO: find available inputs
 type RUsageFlavor int
+
+const (
+	RUsageInfoV0      RUsageFlavor = 0x0
+	RUsageInfoV1      RUsageFlavor = 0x1
+	RUsageInfoV2      RUsageFlavor = 0x2
+	RUsageInfoV3      RUsageFlavor = 0x3
+	RUsageInfoV4      RUsageFlavor = 0x4
+	RUsageInfoCurrent RUsageFlavor = RUsageInfoV4
+)
+
+// RUsage is the highest rusage flavor we support.
+//
+// At runtime the highest flavor may be less, in which case some fields will be their zero value. Inspect
+// HighestRUsageFlavor for
+type RUsage struct {
+	UUID                      [16]byte
+	UserTime                  uint64
+	SystemTime                uint64
+	PkgIdleWkups              uint64
+	InterruptWkups            uint64
+	Pageins                   uint64
+	WiredSize                 uint64
+	ResidentSize              uint64
+	PhysFootprint             uint64
+	ProcStartAbstime          uint64
+	ProcExitAbstime           uint64
+	ChildUserTime             uint64
+	ChildSystemTime           uint64
+	ChildPkgIdleWkups         uint64
+	ChildInterruptWkups       uint64
+	ChildPageins              uint64
+	ChildElapsedAbstime       uint64
+	DiskIoBytesRead           uint64
+	DiskIoBytesWritten        uint64
+	CPUTimeQosDefault         uint64
+	CPUTimeQosMaintenance     uint64
+	CPUTimeQosBackground      uint64
+	CPUTimeQosUtility         uint64
+	CPUTimeQosLegacy          uint64
+	CPUTimeQosUserInitiated   uint64
+	CPUTimeQosUserInteractive uint64
+	BilledSystemTime          uint64
+	ServicedSystemTime        uint64
+	LogicalWrites             uint64
+	LifetimeMaxPhysFootprint  uint64
+	Instructions              uint64
+	Cycles                    uint64
+	BilledEnergy              uint64
+	ServicedEnergy            uint64
+}

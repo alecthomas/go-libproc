@@ -2,10 +2,14 @@ package libproc
 
 // #include <libproc.h>
 // #include <golibproc.h>
+// #include <unistd.h>
 import "C"
 import (
+	"fmt"
 	"unsafe"
 )
+
+var RawHighestRUsageFlavor = RawDiscoverRUsageVersion()
 
 // RawProcListPidsPath is a low-level binding for proc_listpidspath.
 func RawProcListPidsPath(_type uint32, typeInfo uint32, path string, pathFlags uint32, buffer unsafe.Pointer, bufferSize int) (int, error) {
@@ -85,10 +89,68 @@ func RawLibVersion(major *int, minor *int) (int, error) {
 	return int(n), getErr(err)
 }
 
+// RawDiscoverRUsageVersion finds the highest supported version of the rusage_info struct at runtime.
+//
+// Will return -1 on error.
+func RawDiscoverRUsageVersion() RUsageFlavor {
+	pid := C.getpid()
+	var v4 C.struct_rusage_info_v4
+	for i := 4; i >= 0; i-- {
+		_, err := C.pid_rusage(C.int(pid), C.int(i), (*C.rusage_info_t)(unsafe.Pointer(&v4)))
+		if err == nil {
+			return RUsageFlavor(i)
+		}
+		fmt.Println(err)
+	}
+	return -1
+}
+
 // RawPidRUsage is a low-level binding for proc_pid_rusage.
-func RawPidRUsage(pid Pid, flavor RUsageFlavor, buffer unsafe.Pointer) (int, error) {
-	n, err := C.pid_rusage(C.int(pid), C.int(flavor), (*C.rusage_info_t)(buffer))
-	return int(n), getErr(err)
+func RawPidRUsage(pid Pid) (*RUsage, int, error) {
+	var rusage_info C.struct_rusage_info_v4
+	n, err := C.pid_rusage(C.int(pid), C.int(RawHighestRUsageFlavor), (*C.rusage_info_t)(unsafe.Pointer(&rusage_info)))
+	if err != nil {
+		return nil, int(n), getErr(err)
+	}
+	rusage := &RUsage{
+		UserTime:                  uint64(rusage_info.ri_user_time),
+		SystemTime:                uint64(rusage_info.ri_system_time),
+		PkgIdleWkups:              uint64(rusage_info.ri_pkg_idle_wkups),
+		InterruptWkups:            uint64(rusage_info.ri_interrupt_wkups),
+		Pageins:                   uint64(rusage_info.ri_pageins),
+		WiredSize:                 uint64(rusage_info.ri_wired_size),
+		ResidentSize:              uint64(rusage_info.ri_resident_size),
+		PhysFootprint:             uint64(rusage_info.ri_phys_footprint),
+		ProcStartAbstime:          uint64(rusage_info.ri_proc_start_abstime),
+		ProcExitAbstime:           uint64(rusage_info.ri_proc_exit_abstime),
+		ChildUserTime:             uint64(rusage_info.ri_child_user_time),
+		ChildSystemTime:           uint64(rusage_info.ri_child_system_time),
+		ChildPkgIdleWkups:         uint64(rusage_info.ri_child_pkg_idle_wkups),
+		ChildInterruptWkups:       uint64(rusage_info.ri_child_interrupt_wkups),
+		ChildPageins:              uint64(rusage_info.ri_child_pageins),
+		ChildElapsedAbstime:       uint64(rusage_info.ri_child_elapsed_abstime),
+		DiskIoBytesRead:           uint64(rusage_info.ri_diskio_bytesread),
+		DiskIoBytesWritten:        uint64(rusage_info.ri_diskio_byteswritten),
+		CPUTimeQosDefault:         uint64(rusage_info.ri_cpu_time_qos_default),
+		CPUTimeQosMaintenance:     uint64(rusage_info.ri_cpu_time_qos_maintenance),
+		CPUTimeQosBackground:      uint64(rusage_info.ri_cpu_time_qos_background),
+		CPUTimeQosUtility:         uint64(rusage_info.ri_cpu_time_qos_utility),
+		CPUTimeQosLegacy:          uint64(rusage_info.ri_cpu_time_qos_legacy),
+		CPUTimeQosUserInitiated:   uint64(rusage_info.ri_cpu_time_qos_user_initiated),
+		CPUTimeQosUserInteractive: uint64(rusage_info.ri_cpu_time_qos_user_interactive),
+		BilledSystemTime:          uint64(rusage_info.ri_billed_system_time),
+		ServicedSystemTime:        uint64(rusage_info.ri_serviced_system_time),
+		LogicalWrites:             uint64(rusage_info.ri_logical_writes),
+		LifetimeMaxPhysFootprint:  uint64(rusage_info.ri_lifetime_max_phys_footprint),
+		Instructions:              uint64(rusage_info.ri_instructions),
+		Cycles:                    uint64(rusage_info.ri_cycles),
+		BilledEnergy:              uint64(rusage_info.ri_billed_energy),
+		ServicedEnergy:            uint64(rusage_info.ri_serviced_energy),
+	}
+	for i := 0; i < 16; i++ {
+		rusage.UUID[i] = byte(rusage_info.ri_uuid[i])
+	}
+	return rusage, 0, nil
 }
 
 // RawSetPControl is a low-level binding for proc_setpcontrol.

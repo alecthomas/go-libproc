@@ -52,3 +52,9 @@ func ListAllPids(bufferSize int) ([]Pid, error) {
 
 	return ret, nil
 }
+
+// PidRUsage returns the rusage_info for pid.
+func PidRUsage(pid Pid) (*RUsage, error) {
+	rusage, _, err := RawPidRUsage(pid)
+	return rusage, err
+}
